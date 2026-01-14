@@ -147,6 +147,65 @@ arecord -f S16_LE -c1 -r 16000 -t raw -D default | nc localhost 43001
 **Windows/Mac**: `ffmpeg` may substitute `arecord`. Or use the solutions proposed in Whisper-Streaming pull requests [#111](https://github.com/ufal/whisper_streaming/pull/111) and [#123](https://github.com/ufal/whisper_streaming/pull/123).
 
 
+### FastAPI WebSocket Server
+
+An alternative WebSocket-based server using FastAPI. This is useful for web clients, remote connections over Tailscale/VPN, or when you need a more modern HTTP-based API.
+
+**Starting the server:**
+
+```bash
+python simulstreaming_whisper_fastapi.py \
+  --host 0.0.0.0 \
+  --port 43001 \
+  --language en \
+  --model_path large-v3.pt
+```
+
+Options:
+- `--host 0.0.0.0` - Listen on all interfaces (required for remote access)
+- `--port 43001` - Port to listen on
+- `--language en` - Source language code (e.g., `en`, `de`, `cs`, or `auto`)
+- `--model_path` - Path to Whisper model file (downloads automatically if not present)
+- All other options from `simulstreaming_whisper.py` are supported (see `--help`)
+
+**Connecting clients:**
+
+WebSocket endpoint: `ws://<host>:<port>/stream`
+
+Send raw PCM16 audio (16kHz, mono, little-endian) as binary WebSocket messages. The server responds with JSON:
+
+```json
+{"start": 0, "end": 1200, "text": " Hello world"}
+```
+
+**Python client example:**
+
+```bash
+python fastapi_client_test.py audio.wav --uri ws://localhost:43001/stream
+```
+
+For remote access (e.g., via Tailscale), use your machine's Tailscale IP:
+
+```bash
+python fastapi_client_test.py audio.wav --uri ws://100.x.x.x:43001/stream
+```
+
+**Browser/Web client:**
+
+```javascript
+const ws = new WebSocket('ws://localhost:43001/stream');
+ws.binaryType = 'arraybuffer';
+
+// Send audio chunks as raw PCM16 bytes
+ws.send(audioChunkArrayBuffer);
+
+// Receive transcription
+ws.onmessage = (event) => {
+  const result = JSON.parse(event.data);
+  console.log(result.text);
+};
+```
+
 
 ### Output format
 
